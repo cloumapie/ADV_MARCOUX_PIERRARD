@@ -3,55 +3,109 @@ from dash import dcc, html
 from dash.dependencies import Input, Output
 import pandas as pd
 import plotly.express as px
+import datetime
 
-
+# Fonction pour charger les données depuis le CSV créé par le script Bash
 def load_data():
     try:
-
-        df = pd.read_csv('btc_prices.csv', names=['timestamp', 'price'], header=None)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        df['price'] = pd.to_numeric(df['price'])
+        # Le CSV doit contenir deux colonnes sans header : timestamp, price
+        df = pd.read_csv("btc_prices.csv", header=None, names=["timestamp", "price"])
+        # Convertir la colonne timestamp en datetime
+        df["timestamp"] = pd.to_datetime(df["timestamp"], format="%Y-%m-%d %H:%M:%S")
+        # Convertir la colonne price en numérique
+        df["price"] = pd.to_numeric(df["price"], errors="coerce")
         return df
     except Exception as e:
         print("Erreur lors du chargement du CSV :", e)
-        return pd.DataFrame(columns=['timestamp', 'price'])
+        return pd.DataFrame(columns=["timestamp", "price"])
 
+# Fonction pour calculer le rapport quotidien à partir des données
+def compute_daily_report(df):
+    if df.empty:
+        return None
+    # Extraire la date (sans l'heure)
+    df["date"] = df["timestamp"].dt.date
+    # Grouper par date et calculer :
+    # - Open : première valeur de la journée
+    # - Close : dernière valeur de la journée
+    # - High : maximum de la journée
+    # - Low : minimum de la journée
+    daily = df.groupby("date").agg(
+        open_price=("price", "first"),
+        close_price=("price", "last"),
+        high_price=("price", "max"),
+        low_price=("price", "min")
+    ).reset_index()
+    # Calculer la volatilité comme (max - min)
+    daily["volatility"] = daily["high_price"] - daily["low_price"]
+    # Calculer l'évolution en pourcentage : (close - open) / open * 100
+    daily["evolution_percent"] = ((daily["close_price"] - daily["open_price"]) / daily["open_price"]) * 100
+    # On retourne le rapport du jour le plus récent
+    most_recent_date = daily["date"].max()
+    report = daily[daily["date"] == most_recent_date]
+    return report
 
+# Création de l'application Dash
 app = dash.Dash(__name__)
 app.title = "Dashboard - Prix du Bitcoin"
 
 app.layout = html.Div([
     html.H1("Dashboard - Prix du Bitcoin"),
-    dcc.Graph(id='price-graph'),
-    html.Div(id='latest-price', style={'fontSize': 24, 'marginTop': '20px'}),
-    # composant Interval pour mettre à jour le dashboard toutes les 5 minutes
+    # Affichage du dernier prix récupéré
+    html.Div(id="latest-price", style={"fontSize": "24px", "margin": "10px"}),
+    # Graphique de la série temporelle
+    dcc.Graph(id="time-series-graph"),
+    html.H2("Rapport quotidien"),
+    # Rapport quotidien avec plusieurs indicateurs
+    html.Div(id="daily-report", style={"fontSize": "18px", "margin": "10px"}),
+    # Intervalle pour mettre à jour le dashboard toutes les 5 minutes (300000 ms)
     dcc.Interval(
-        id='interval-component',
+        id="interval-component",
         interval=5*60*1000,  # 5 minutes en millisecondes
         n_intervals=0
     )
 ])
 
-# Callback pour actualiser le graphique et le dernier prix
+# Callback pour actualiser le dashboard à chaque intervalle
 @app.callback(
-    [Output('price-graph', 'figure'),
-     Output('latest-price', 'children')],
-    [Input('interval-component', 'n_intervals')]
+    [Output("latest-price", "children"),
+     Output("time-series-graph", "figure"),
+     Output("daily-report", "children")],
+    [Input("interval-component", "n_intervals")]
 )
 def update_dashboard(n):
     df = load_data()
     if df.empty:
-        return {}, "Aucune donnée disponible pour le moment."
+        return "Aucune donnée disponible", {}, "Aucun rapport quotidien disponible"
     
-    # graphique
-    fig = px.line(df, x='timestamp', y='price', title='Evolution du Prix du Bitcoin',
-                  labels={'timestamp': 'Date et Heure', 'price': 'Prix (USD)'})
+    # Récupérer la dernière mesure
+    latest_row = df.iloc[-1]
+    latest_text = f"Dernière mesure ({latest_row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}) : {latest_row['price']} USD"
     
-    # dernière mesure
-    latest = df.iloc[-1]
-    latest_text = f"Dernière mesure ({latest['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}) : {latest['price']} USD"
+    # Création du graphique de la série temporelle
+    fig = px.line(df, x="timestamp", y="price", 
+                  title="Évolution du prix du Bitcoin",
+                  labels={"timestamp": "Temps", "price": "Prix (USD)"})
     
-    return fig, latest_text
+    # Calculer le rapport quotidien
+    daily_report_df = compute_daily_report(df)
+    if daily_report_df is None or daily_report_df.empty:
+        daily_report_content = "Aucun rapport quotidien disponible."
+    else:
+        row = daily_report_df.iloc[0]
+        # Si la colonne date est au format date, on la formate en chaîne
+        date_str = row["date"].strftime("%Y-%m-%d") if isinstance(row["date"], datetime.date) else str(row["date"])
+        daily_report_content = [
+            html.P(f"Date: {date_str}"),
+            html.P(f"Prix d'ouverture: {row['open_price']} USD"),
+            html.P(f"Prix de clôture: {row['close_price']} USD"),
+            html.P(f"Prix maximum: {row['high_price']} USD"),
+            html.P(f"Prix minimum: {row['low_price']} USD"),
+            html.P(f"Volatilité (max - min): {row['volatility']} USD"),
+            html.P(f"Évolution: {row['evolution_percent']:.2f}%")
+        ]
+    
+    return latest_text, fig, daily_report_content
 
 if __name__ == '__main__':
     app.run_server(debug=True)
