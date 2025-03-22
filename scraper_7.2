@@ -1,0 +1,14 @@
+#!/bin/bash
+
+URL="https://www.coinlore.com/coin/bitcoin"
+
+html=$(curl -s "$URL")
+
+price=$(echo "$html" | grep -oP 'id="hprice"[^>]*data-fiat="\K[0-9.]+' | head -n1)
+
+# timestamp actuel
+timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+echo "$timestamp,$price" >> btc_prices.csv
+
+echo "[$timestamp] Prix BTC récupéré : $price USD"
