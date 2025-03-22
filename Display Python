@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.express as px
 import datetime
 
-# Fonction pour charger les données depuis le CSV créé par le script Bash
+# charger les données depuis le CSV créé par le script Bash
 def load_data():
     try:
         # Le CSV doit contenir deux colonnes sans header : timestamp, price
@@ -19,24 +19,20 @@ def load_data():
         print("Erreur lors du chargement du CSV :", e)
         return pd.DataFrame(columns=["timestamp", "price"])
 
-# Fonction pour calculer le rapport quotidien à partir des données
+# pour calculer le rapport quotidien à partir des données
 def compute_daily_report(df):
     if df.empty:
         return None
     # Extraire la date (sans l'heure)
     df["date"] = df["timestamp"].dt.date
-    # Grouper par date et calculer :
-    # - Open : première valeur de la journée
-    # - Close : dernière valeur de la journée
-    # - High : maximum de la journée
-    # - Low : minimum de la journée
+  
     daily = df.groupby("date").agg(
         open_price=("price", "first"),
         close_price=("price", "last"),
         high_price=("price", "max"),
         low_price=("price", "min")
     ).reset_index()
-    # Calculer la volatilité comme (max - min)
+    # volatilité 
     daily["volatility"] = daily["high_price"] - daily["low_price"]
     # Calculer l'évolution en pourcentage : (close - open) / open * 100
     daily["evolution_percent"] = ((daily["close_price"] - daily["open_price"]) / daily["open_price"]) * 100
@@ -45,18 +41,18 @@ def compute_daily_report(df):
     report = daily[daily["date"] == most_recent_date]
     return report
 
-# Création de l'application Dash
+
 app = dash.Dash(__name__)
 app.title = "Dashboard - Prix du Bitcoin"
 
 app.layout = html.Div([
     html.H1("Dashboard - Prix du Bitcoin"),
-    # Affichage du dernier prix récupéré
+ 
     html.Div(id="latest-price", style={"fontSize": "24px", "margin": "10px"}),
-    # Graphique de la série temporelle
+  
     dcc.Graph(id="time-series-graph"),
     html.H2("Rapport quotidien"),
-    # Rapport quotidien avec plusieurs indicateurs
+    
     html.Div(id="daily-report", style={"fontSize": "18px", "margin": "10px"}),
     # Intervalle pour mettre à jour le dashboard toutes les 5 minutes (300000 ms)
     dcc.Interval(
@@ -82,18 +78,17 @@ def update_dashboard(n):
     latest_row = df.iloc[-1]
     latest_text = f"Dernière mesure ({latest_row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}) : {latest_row['price']} USD"
     
-    # Création du graphique de la série temporelle
+   
     fig = px.line(df, x="timestamp", y="price", 
                   title="Évolution du prix du Bitcoin",
                   labels={"timestamp": "Temps", "price": "Prix (USD)"})
-    
-    # Calculer le rapport quotidien
+ 
     daily_report_df = compute_daily_report(df)
     if daily_report_df is None or daily_report_df.empty:
         daily_report_content = "Aucun rapport quotidien disponible."
     else:
         row = daily_report_df.iloc[0]
-        # Si la colonne date est au format date, on la formate en chaîne
+        
         date_str = row["date"].strftime("%Y-%m-%d") if isinstance(row["date"], datetime.date) else str(row["date"])
         daily_report_content = [
             html.P(f"Date: {date_str}"),
