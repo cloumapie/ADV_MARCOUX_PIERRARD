@@ -4,7 +4,10 @@ import pandas as pd
 import plotly.express as px
 
 
-df = pd.read_excel("C:\Users\punky\Desktop\BDD AGL.xlsx")
+df = pd.read_csv("eth_prices.csv", header=None, names=["Date", "Price"])
+df["Date"] = pd.to_datetime(df["Date"])
+df["Price"] = pd.to_numeric(df["Price"], errors="coerce")
+
 fig = px.line(df, x='Date', y='Price', title="Évolution du prix de l'Ethereum")
 
 
