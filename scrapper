@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Appel de l'API
+RESPONSE=$(curl -s 'https://cmd.btcdirect.eu/v2/price-ticker/ETH' \
+  -H 'sec-ch-ua-platform: "Windows"' \
+  -H 'Referer: https://btcdirect.eu/' \
+  -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36' \
+  -H 'sec-ch-ua: "Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"' \
+  -H 'sec-ch-ua-mobile: ?0')
+
+# Extraction du prix EUR avec grep (ou awk si tu préfères)
+PRICE=$(echo "$RESPONSE" | grep -oP '"EUR":\K[0-9]+\.[0-9]+')
+
+# Timestamp
+DATE=$(date '+%Y-%m-%d %H:%M:%S')
+
+# Sauvegarde CSV
+echo "$DATE,$PRICE" >> eth_prices.csv
+
+# Affichage
+echo "[$DATE] Prix ETH (EUR) : €$PRICE"
