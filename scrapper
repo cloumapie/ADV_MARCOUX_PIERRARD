@@ -8,14 +8,14 @@ RESPONSE=$(curl -s 'https://cmd.btcdirect.eu/v2/price-ticker/ETH' \
   -H 'sec-ch-ua: "Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"' \
   -H 'sec-ch-ua-mobile: ?0')
 
-# Extraction du prix EUR avec grep (ou awk si tu préfères)
+# Extraction du prix EUR avec grep 
 PRICE=$(echo "$RESPONSE" | grep -oP '"EUR":\K[0-9]+\.[0-9]+')
 
 # Timestamp
 DATE=$(date '+%Y-%m-%d %H:%M:%S')
 
-# Sauvegarde CSV
+# Sauvegarde CSV dans le fichier eth_prices.csv
 echo "$DATE,$PRICE" >> eth_prices.csv
 
-# Affichage
+# Affichage du prix de l'eth
 echo "[$DATE] Prix ETH (EUR) : €$PRICE"
