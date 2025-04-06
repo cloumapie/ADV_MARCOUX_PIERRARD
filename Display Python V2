@@ -12,7 +12,8 @@ app.title = "ETH Live Dashboard"
 app.layout = html.Div([
     html.H1("Dashboard ETH - Données scrappées"),
     html.Div("Ce dashboard affiche les prix d'Ethereum collectés automatiquement."),
-
+    html.H3("Analyse journalière d'ETH"),
+    html.Div(id='analyse-jour', style={'marginBottom': '30px'}),
     dcc.Graph(id='graphique'),
     dash_table.DataTable(
         id='tableau',
@@ -34,7 +35,8 @@ app.layout = html.Div([
 # callback pour mettre à jour le graphique et la table
 @app.callback(
     [Output('graphique', 'figure'),
-     Output('tableau', 'data')],
+     Output('tableau', 'data'),
+     Output('analyse-jour', 'children')],  # Ajouté ici
     [Input('interval-update', 'n_intervals')]
 )
 def update_dashboard(n):
@@ -43,11 +45,35 @@ def update_dashboard(n):
         df["Date"] = pd.to_datetime(df["Date"])
         df["Price"] = pd.to_numeric(df["Price"], errors="coerce")
 
+        df.sort_values("Date", inplace=True)
+        df["Daily Change (%)"] = df["Price"].pct_change() * 100
+
+        # Analyse du dernier jour
+        dernier_jour = df["Date"].dt.date.iloc[-1]
+        df_jour = df[df["Date"].dt.date == dernier_jour]
+
+        variation = df["Daily Change (%)"].iloc[-1]
+        moyenne_jour = df_jour["Price"].mean()
+        min_jour = df_jour["Price"].min()
+        max_jour = df_jour["Price"].max()
+        vol_1j = df_jour["Price"].std()
+        vol_3j = df["Price"].rolling(window=3).std().iloc[-1]
+        analyse_html = html.Div([
+            html.P(f"📅 Date : {dernier_jour}"),
+            html.P(f"📈 Variation journalière : {variation:.2f} %"),
+            html.P(f"🔼 Prix max du jour : {max_jour:.2f} €"),
+            html.P(f"🔽 Prix min du jour : {min_jour:.2f} €"),
+            html.P(f"📊 Prix moyen du jour : {moyenne_jour:.2f} €"),
+            html.P(f"📉 Volatilité 1j : {vol_1j:.2f} €"),
+            html.P(f"📉 Volatilité 3j : {vol_3j:.2f} €"),
+        ])
+
         fig = px.line(df, x='Date', y='Price', title="Évolution du prix de l'Ethereum")
-        return fig, df.to_dict('records')
+        return fig, df.to_dict('records'), analyse_html
+
     except Exception as e:
         print("Erreur de lecture du fichier CSV :", e)
-        return {}, []
+        return {}, [], html.P("Erreur lors du chargement des données.")
 
 
 if __name__ == '__main__':
