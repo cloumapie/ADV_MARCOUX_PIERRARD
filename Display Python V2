@@ -10,7 +10,7 @@ app.title = "ETH Live Dashboard"
 
 # layout pour l'app
 app.layout = html.Div([
-    html.H1("Dashboard ETH - Données scrappées"),
+    html.H1("Dashboard ETH - Données scrappées sur le site https://btcdirect.eu/fr-fr/cours-ethereum"),
     html.Div("Ce dashboard affiche les prix d'Ethereum collectés automatiquement."),
     html.H3("Analyse journalière d'ETH"),
     html.Div(id='analyse-jour', style={'marginBottom': '30px'}),
@@ -75,6 +75,6 @@ def update_dashboard(n):
         print("Erreur de lecture du fichier CSV :", e)
         return {}, [], html.P("Erreur lors du chargement des données.")
 
-
+# Configure le port d'accès pour le display
 if __name__ == '__main__':
     app.run(debug=False, host="0.0.0.0", port=8050)
