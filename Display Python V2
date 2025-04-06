@@ -1,0 +1,54 @@
+import dash
+from dash import dcc, html, dash_table
+from dash.dependencies import Input, Output
+import pandas as pd
+import plotly.express as px
+
+
+app = dash.Dash(__name__)
+app.title = "ETH Live Dashboard"
+
+# layout pour l'app
+app.layout = html.Div([
+    html.H1("Dashboard ETH - Données scrappées"),
+    html.Div("Ce dashboard affiche les prix d'Ethereum collectés automatiquement."),
+
+    dcc.Graph(id='graphique'),
+    dash_table.DataTable(
+        id='tableau',
+        columns=[{"name": "Date", "id": "Date"}, {"name": "Price", "id": "Price"}],
+        page_size=10,
+        style_table={'overflowX': 'auto'},
+        style_cell={'textAlign': 'left', 'padding': '5px'},
+        style_header={'backgroundColor': 'lightgrey', 'fontWeight': 'bold'}
+    ),
+
+    # rafraîchir les données toutes les 60 secondes
+    dcc.Interval(
+        id='interval-update',
+        interval=300*1000,  # 60 secondes
+        n_intervals=0
+    )
+])
+
+# callback pour mettre à jour le graphique et la table
+@app.callback(
+    [Output('graphique', 'figure'),
+     Output('tableau', 'data')],
+    [Input('interval-update', 'n_intervals')]
+)
+def update_dashboard(n):
+    try:
+        df = pd.read_csv("eth_prices.csv", header=None, names=["Date", "Price"])
+        df["Date"] = pd.to_datetime(df["Date"])
+        df["Price"] = pd.to_numeric(df["Price"], errors="coerce")
+
+        fig = px.line(df, x='Date', y='Price', title="Évolution du prix de l'Ethereum")
+        return fig, df.to_dict('records')
+    except Exception as e:
+        print("Erreur de lecture du fichier CSV :", e)
+        return {}, []
+
+
+if __name__ == '__main__':
+    app.run(debug=False, host="0.0.0.0", port=8050)
